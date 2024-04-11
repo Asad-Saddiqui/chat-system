@@ -1,13 +1,14 @@
 const asyncHandler = require("express-async-handler");
 const Chat = require("../models/chatModel");
 const User = require("../models/userModel");
-
+const Cryptr = require('cryptr');
+const cryptr = new Cryptr('myTotallySecretKey');
 //@description     Create or fetch One to One Chat
 //@route           POST /api/chat/
 //@access          Protected
 const accessChat = asyncHandler(async (req, res) => {
   const { userId } = req.body;
-
+  // console.log("working ")
   if (!userId) {
     console.log("UserId param not sent with request");
     return res.sendStatus(400);
@@ -36,13 +37,14 @@ const accessChat = asyncHandler(async (req, res) => {
       isGroupChat: false,
       users: [req.user._id, userId],
     };
-
+    // console.log({ isChat })
     try {
       const createdChat = await Chat.create(chatData);
       const FullChat = await Chat.findOne({ _id: createdChat._id }).populate(
         "users",
         "-password"
       );
+      // console.log({ FullChat })
       res.status(200).json(FullChat);
     } catch (error) {
       res.status(400);
@@ -55,6 +57,7 @@ const accessChat = asyncHandler(async (req, res) => {
 //@route           GET /api/chat/
 //@access          Protected
 const fetchChats = asyncHandler(async (req, res) => {
+  // console.log("fetchChats")
   try {
     Chat.find({ users: { $elemMatch: { $eq: req.user._id } } })
       .populate("users", "-password")
@@ -66,6 +69,16 @@ const fetchChats = asyncHandler(async (req, res) => {
           path: "latestMessage.sender",
           select: "name pic email",
         });
+        // console.log(results.length);
+
+        results = results.map((results) => {
+          if (results?.latestMessage!==null) {
+            results.latestMessage.content = cryptr.decrypt(results.latestMessage.content);
+          }
+          return results;
+        })
+        // console.log(results)
+        // console.log({ messages_: messages.latestMessage })
         res.status(200).send(results);
       });
   } catch (error) {

@@ -1,14 +1,15 @@
 import { BellIcon, ChevronDownIcon } from '@chakra-ui/icons';
-import { 
-  Avatar, 
-  Box, Button, 
-  Drawer, DrawerBody, DrawerContent, DrawerHeader, DrawerOverlay, 
-  Input, 
-  Menu, MenuButton, MenuDivider, MenuItem, MenuList, 
-  Spinner, 
-  Text, Tooltip, 
-  useDisclosure, 
-  useToast } from '@chakra-ui/react';
+import {
+  Avatar,
+  Box, Button,
+  Drawer, DrawerBody, DrawerContent, DrawerHeader, DrawerOverlay,
+  Input,
+  Menu, MenuButton, MenuDivider, MenuItem, MenuList,
+  Spinner,
+  Text, Tooltip,
+  useDisclosure,
+  useToast
+} from '@chakra-ui/react';
 import { Effect } from 'react-notification-badge';
 import NotificationBadge from 'react-notification-badge/lib/components/NotificationBadge';
 
@@ -134,7 +135,7 @@ function SideDrawer() {
           </Button>
         </Tooltip>
         <Text fontSize="2xl" fontFamily="Work sans">
-          Talk-A-Tive
+          Chat System
         </Text>
         <div>
           <Menu>
