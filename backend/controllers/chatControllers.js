@@ -2,13 +2,16 @@ const asyncHandler = require("express-async-handler");
 const Chat = require("../models/chatModel");
 const User = require("../models/userModel");
 const Cryptr = require('cryptr');
+const Crypto = require('crypto');
 const cryptr = new Cryptr('myTotallySecretKey');
 //@description     Create or fetch One to One Chat
 //@route           POST /api/chat/
 //@access          Protected
+const { encryptMessage, decryptMessage } = require('../middleware/encryption');
+
 const accessChat = asyncHandler(async (req, res) => {
+  console.log("------------------accessChat------------")
   const { userId } = req.body;
-  // console.log("working ")
   if (!userId) {
     console.log("UserId param not sent with request");
     return res.sendStatus(400);
@@ -32,9 +35,16 @@ const accessChat = asyncHandler(async (req, res) => {
   if (isChat.length > 0) {
     res.send(isChat[0]);
   } else {
+    const { publicKey, privateKey } = Crypto.generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+    });
     var chatData = {
       chatName: "sender",
       isGroupChat: false,
+      keyOne: publicKey,
+      keytwo: privateKey,
       users: [req.user._id, userId],
     };
     // console.log({ isChat })
@@ -44,10 +54,11 @@ const accessChat = asyncHandler(async (req, res) => {
         "users",
         "-password"
       );
-      // console.log({ FullChat })
+      console.log({ FullChat })
       res.status(200).json(FullChat);
     } catch (error) {
       res.status(400);
+      console.log(error.message)
       throw new Error(error.message);
     }
   }
@@ -57,7 +68,7 @@ const accessChat = asyncHandler(async (req, res) => {
 //@route           GET /api/chat/
 //@access          Protected
 const fetchChats = asyncHandler(async (req, res) => {
-  // console.log("fetchChats")
+  console.log("fetchChats")
   try {
     Chat.find({ users: { $elemMatch: { $eq: req.user._id } } })
       .populate("users", "-password")
@@ -69,11 +80,13 @@ const fetchChats = asyncHandler(async (req, res) => {
           path: "latestMessage.sender",
           select: "name pic email",
         });
-        // console.log(results.length);
+        console.log(results);
 
         results = results.map((results) => {
-          if (results?.latestMessage!==null) {
-            results.latestMessage.content = cryptr.decrypt(results.latestMessage.content);
+          if (results?.latestMessage !== null) {
+            // results.latestMessage.content = cryptr.decrypt(results.latestMessage.content);
+            results.latestMessage.content = decryptMessage(results.latestMessage.content, results.keytwo, results.keyOne);
+
           }
           return results;
         })
@@ -91,6 +104,7 @@ const fetchChats = asyncHandler(async (req, res) => {
 //@route           POST /api/chat/group
 //@access          Protected
 const createGroupChat = asyncHandler(async (req, res) => {
+  console.log("------------------createGroupChat------------")
   if (!req.body.users || !req.body.name) {
     return res.status(400).send({ message: "Please Fill all the feilds" });
   }
@@ -106,10 +120,17 @@ const createGroupChat = asyncHandler(async (req, res) => {
   users.push(req.user);
 
   try {
+    const { publicKey, privateKey } = Crypto.generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+    });
     const groupChat = await Chat.create({
       chatName: req.body.name,
       users: users,
       isGroupChat: true,
+      keyOne: publicKey,
+      keytwo: privateKey,
       groupAdmin: req.user,
     });
 
@@ -124,11 +145,9 @@ const createGroupChat = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Rename Group
-// @route   PUT /api/chat/rename
-// @access  Protected
 const renameGroup = asyncHandler(async (req, res) => {
   const { chatId, chatName } = req.body;
+  console.log("renameGroup")
 
   const updatedChat = await Chat.findByIdAndUpdate(
     chatId,
@@ -154,6 +173,8 @@ const renameGroup = asyncHandler(async (req, res) => {
 // @route   PUT /api/chat/groupremove
 // @access  Protected
 const removeFromGroup = asyncHandler(async (req, res) => {
+  console.log("remove")
+
   const { chatId, userId } = req.body;
 
   // check if the requester is admin
@@ -183,6 +204,7 @@ const removeFromGroup = asyncHandler(async (req, res) => {
 // @access  Protected
 const addToGroup = asyncHandler(async (req, res) => {
   const { chatId, userId } = req.body;
+  console.log("add to group")
 
   // check if the requester is admin
 
